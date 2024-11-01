@@ -317,7 +317,7 @@ func (s *Service) createCertManager(hosts []string, options ServiceOptions) (Cer
 	// Ensure we're not trying to use Let's Encrypt to fetch a wildcard domain,
 	// as that is not supported with the challenge types that we use.
 	for _, host := range hosts {
-		if strings.Contains(host, "*") && options.TLSOnDemandUrl == "" {
+		if strings.Contains(host, "*") {
 			return nil, ErrorAutomaticTLSDoesNotSupportWildcards
 		}
 	}
