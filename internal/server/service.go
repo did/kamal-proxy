@@ -1,13 +1,16 @@
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -66,6 +69,7 @@ type HealthCheckConfig struct {
 
 type ServiceOptions struct {
 	TLSEnabled         bool   `json:"tls_enabled"`
+	TLSOnDemandUrl     string `json:"tls_on_demand_url"`
 	TLSCertificatePath string `json:"tls_certificate_path"`
 	TLSPrivateKeyPath  string `json:"tls_private_key_path"`
 	ACMEDirectory      string `json:"acme_directory"`
@@ -313,16 +317,83 @@ func (s *Service) createCertManager(hosts []string, options ServiceOptions) (Cer
 	// Ensure we're not trying to use Let's Encrypt to fetch a wildcard domain,
 	// as that is not supported with the challenge types that we use.
 	for _, host := range hosts {
-		if strings.Contains(host, "*") {
+		if strings.Contains(host, "*") && options.TLSOnDemandUrl == "" {
 			return nil, ErrorAutomaticTLSDoesNotSupportWildcards
 		}
+	}
+
+	// // TODO:
+	// // - create a func instead to return the host policy
+	// // - create the function calling the on demand url
+	// var hostPolicy = autocert.HostWhitelist(hosts...)
+
+	// // https://stackoverflow.com/questions/52129908/can-i-have-a-dynamic-host-policty-with-autocert
+
+	// // Wildcard hosts!!! we can handle them now!
+	// if len(hosts) == 0 && options.TLSOnDemandUrl != "" {
+	// 	fmt.Println("🚀🚀🚀 Registering a custom hostPolicy for", hosts)
+	// 	hostPolicy = func(ctx context.Context, host string) error {
+	// 		slog.Debug("Contacting", options.TLSOnDemandUrl, host)
+
+	// 		resp, err := http.Get(fmt.Sprintf("%s?domain=%s", options.TLSOnDemandUrl, url.QueryEscape(host)))
+
+	// 		if err != nil {
+	// 			// the TLS on demand URL is not reachable
+	// 			slog.Error("Unable to reach the TLS on demand URL", host, err)
+	// 			return err
+	// 		}
+
+	// 		if resp.StatusCode != 200 && resp.StatusCode != 201 {
+	// 			return fmt.Errorf("%s is not allowed to get a certificate", host)
+	// 		}
+
+	// 		return nil
+	// 	}
+	// } else {
+	// 	fmt.Println("😕😕😕", len(hosts), hosts, options.TLSOnDemandUrl)
+	// }
+
+	hostPolicy, err := s.createAutoCertHostPolicy(hosts, options)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		Cache:      autocert.DirCache(options.ScopedCachePath()),
-		HostPolicy: autocert.HostWhitelist(hosts...),
+		HostPolicy: hostPolicy,
 		Client:     &acme.Client{DirectoryURL: options.ACMEDirectory},
+	}, nil
+}
+
+func (s *Service) createAutoCertHostPolicy(hosts []string, options ServiceOptions) (autocert.HostPolicy, error) {
+	onDemandTls := len(hosts) == 0 && options.TLSOnDemandUrl != ""
+
+	if !onDemandTls {
+		return autocert.HostWhitelist(hosts...), nil
+	}
+
+	_, err := url.ParseRequestURI(options.TLSOnDemandUrl)
+
+	if err != nil {
+		slog.Error("Unable to parse the tls_on_demand_url URL")
+		return nil, err
+	}
+
+	return func(ctx context.Context, host string) error {
+		resp, err := http.Get(fmt.Sprintf("%s?host=%s", options.TLSOnDemandUrl, url.QueryEscape(host)))
+
+		if err != nil {
+			slog.Error("Unable to reach the TLS on demand URL", host, err)
+			return err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("%s is not allowed to get a certificate", host)
+		}
+
+		return nil
 	}, nil
 }
 
