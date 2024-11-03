@@ -89,7 +89,7 @@ applications. To enable this, add the `--tls` flag when deploying an instance:
     kamal-proxy deploy service1 --target web-1:3000 --host app1.example.com --tls
 
 
-## On-demand TLS
+### On-demand TLS
 
 In addition of the automatic TLS functionality, Kamal Proxy can also dynamically obtain a TLS certificate 
 from any host allowed by an external API endpoint of your choice.
