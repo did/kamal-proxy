@@ -72,6 +72,7 @@ type ServiceOptions struct {
 	TLSOnDemandUrl     string `json:"tls_on_demand_url"`
 	TLSCertificatePath string `json:"tls_certificate_path"`
 	TLSPrivateKeyPath  string `json:"tls_private_key_path"`
+	TLSFlexibleMode 	 bool 	`json:"tls_flexible_mode"`
 	ACMEDirectory      string `json:"acme_directory"`
 	ACMECachePath      string `json:"acme_cache_path"`
 	ErrorPagePath      string `json:"error_page_path"`
@@ -395,7 +396,7 @@ func (s *Service) createMiddleware(options ServiceOptions, certManager CertManag
 func (s *Service) serviceRequestWithTarget(w http.ResponseWriter, r *http.Request) {
 	LoggingRequestContext(r).Service = s.name
 
-	if s.options.TLSEnabled && r.TLS == nil {
+	if s.options.TLSEnabled && s.options.TLSFlexibleMode == false && r.TLS == nil {
 		s.redirectToHTTPS(w, r)
 		return
 	}
