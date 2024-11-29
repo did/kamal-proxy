@@ -88,20 +88,29 @@ applications. To enable this, add the `--tls` flag when deploying an instance:
 
     kamal-proxy deploy service1 --target web-1:3000 --host app1.example.com --tls
 
-
 ### On-demand TLS
 
-In addition of the automatic TLS functionality, Kamal Proxy can also dynamically obtain a TLS certificate 
+In addition of the automatic TLS functionality, Kamal Proxy can also dynamically obtain a TLS certificate
 from any host allowed by an external API endpoint of your choice.
 This avoids hard-coding hosts in the configuration, especially when you don't know the hosts at the startup.
 
     kamal-proxy deploy service1 --target web-1:3000 --host "" --tls --tls-on-demand-url="http://localhost:4567/check"
 
-The On-demand URL endpoint will have to answer a 200 HTTP status code. 
+The On-demand URL endpoint will have to answer a 200 HTTP status code.
 Kamal Proxy will call the on-demand URL with a query string of `?host=` containing the host received by Kamal Proxy.
 
 It also must respond as fast as possible, a couple of milliseconds top.
 
+### TLS Flexible mode
+
+The On-demand TLS feature offers a TLS certificate for any dynamic host.
+However, some hosts can be served by Cloudflare, and in that case, Kamal Proxy is unable to generate a TLS certificate.
+
+Unless you provide a custom TLS certificate for those hosts, a quick solution is to allow a non-secure connection between Cloudflare and Kamal Proxy ("flexible" mode in Cloudflare). On the Kamal Proxy side, we need to accept non-secure connections and not redirect them to HTTPS.
+
+    kamal-proxy deploy service1 --target web-1:3000 --host "" --tls --tls-on-demand-url="http://localhost:4567/check" --tls-flexible-mode=true
+
+In return, the application handling the requests from Kamal Proxy must be in charge of redirecting HTTP connections to HTTPS.
 
 ### Custom TLS certificate
 
