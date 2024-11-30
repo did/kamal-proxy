@@ -337,9 +337,9 @@ func (s *Service) createCertManager(hosts []string, options ServiceOptions) (Cer
 }
 
 func (s *Service) createAutoCertHostPolicy(hosts []string, options ServiceOptions) (autocert.HostPolicy, error) {
-	onDemandTls := len(hosts) == 0 && options.TLSOnDemandUrl != ""
+	slog.Info("createAutoCertHostPolicy called", options.TLSOnDemandUrl, len(hosts), "🚨", "ok")
 
-	if !onDemandTls {
+	if options.TLSOnDemandUrl == "" {
 		return autocert.HostWhitelist(hosts...), nil
 	}
 
@@ -350,7 +350,11 @@ func (s *Service) createAutoCertHostPolicy(hosts []string, options ServiceOption
 		return nil, err
 	}
 
+	slog.Info("Will use the tls_on_demand_url URL")
+
 	return func(ctx context.Context, host string) error {
+		slog.Info("Get a certificate for", host, "🤞")
+
 		resp, err := http.Get(fmt.Sprintf("%s?host=%s", options.TLSOnDemandUrl, url.QueryEscape(host)))
 
 		if err != nil {
