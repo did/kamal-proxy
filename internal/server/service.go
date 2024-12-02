@@ -323,7 +323,6 @@ func (s *Service) createCertManager(hosts []string, options ServiceOptions) (Cer
 	}
 
 	hostPolicy, err := s.createAutoCertHostPolicy(hosts, options)
-
 	if err != nil {
 		return nil, err
 	}
@@ -337,14 +336,13 @@ func (s *Service) createCertManager(hosts []string, options ServiceOptions) (Cer
 }
 
 func (s *Service) createAutoCertHostPolicy(hosts []string, options ServiceOptions) (autocert.HostPolicy, error) {
-	slog.Info("createAutoCertHostPolicy called", options.TLSOnDemandUrl, len(hosts), "🚨", "ok")
+	slog.Info("createAutoCertHostPolicy called", "url", options.TLSOnDemandUrl)
 
 	if options.TLSOnDemandUrl == "" {
 		return autocert.HostWhitelist(hosts...), nil
 	}
 
 	_, err := url.ParseRequestURI(options.TLSOnDemandUrl)
-
 	if err != nil {
 		slog.Error("Unable to parse the tls_on_demand_url URL")
 		return nil, err
@@ -353,10 +351,9 @@ func (s *Service) createAutoCertHostPolicy(hosts []string, options ServiceOption
 	slog.Info("Will use the tls_on_demand_url URL")
 
 	return func(ctx context.Context, host string) error {
-		slog.Info("Get a certificate for", host, "🤞")
+		slog.Info("Get a certificate", "host", host)
 
 		resp, err := http.Get(fmt.Sprintf("%s?host=%s", options.TLSOnDemandUrl, url.QueryEscape(host)))
-
 		if err != nil {
 			slog.Error("Unable to reach the TLS on demand URL", host, err)
 			return err
